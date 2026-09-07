@@ -57,9 +57,9 @@
           <span>👤 คุณคือ:</span>
         </span>
         <div class="flex items-center gap-1">
-          <button onclick="setMyRole('Jai')" id="role-jai" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow-xs">Jai</button>
-          <button onclick="setMyRole('Niki')" id="role-niki" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">Niki</button>
-          <button onclick="setMyRole('P'Kook')" id="role-kook" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">P'Kook</button>
+          <button onclick="setMyRole('jai')" id="role-jai" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow-xs">Jai</button>
+          <button onclick="setMyRole('niki')" id="role-niki" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">Niki</button>
+          <button onclick="setMyRole('kook')" id="role-kook" class="role-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">P'Kook</button>
         </div>
       </div>
     </div>
@@ -286,22 +286,34 @@
     let isConnected = false;
     let reconnectAttempts = 0;
 
+    const ROLE_MAP = {
+      jai: { key: 'jai', name: 'Jai' },
+      niki: { key: 'niki', name: 'Niki' },
+      kook: { key: 'kook', name: "P'Kook" }
+    };
+
+    let myRoleKey = localStorage.getItem('hamazushi_my_role_key') || 'jai';
+
+    function getMyRoleName() {
+      return (ROLE_MAP[myRoleKey] && ROLE_MAP[myRoleKey].name) ? ROLE_MAP[myRoleKey].name : 'Jai';
+    }
+
     // Set & Persist Role
-    function setMyRole(role) {
-      myRole = role;
-      localStorage.setItem('hamazushi_my_role', role);
+    function setMyRole(roleKey) {
+      if (!ROLE_MAP[roleKey]) roleKey = 'jai';
+      myRoleKey = roleKey;
+      localStorage.setItem('hamazushi_my_role_key', roleKey);
       updateRoleUI();
-      showToast(`👤 คุณเลือกบทบาทเป็น "${role}"`);
+      showToast('👤 คุณเลือกบทบาทเป็น "' + ROLE_MAP[roleKey].name + '"');
     }
 
     function updateRoleUI() {
-      ['Jai', 'Niki', 'P'Kook'].forEach(r => {
-        const id = r === 'Jai' ? 'role-jai' : (r === 'Niki' ? 'role-niki' : 'role-kook');
-        const btn = document.getElementById(id);
+      ['jai', 'niki', 'kook'].forEach(k => {
+        const btn = document.getElementById('role-' + k);
         if (!btn) return;
-        if (myRole === r) {
-          if (r === 'Jai') btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow-xs';
-          else if (r === 'Niki') btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-xs';
+        if (myRoleKey === k) {
+          if (k === 'jai') btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow-xs';
+          else if (k === 'niki') btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-xs';
           else btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-bold transition bg-rose-600 text-white shadow-xs';
         } else {
           btn.className = 'role-btn px-2.5 py-1 rounded-lg text-xs font-medium transition bg-white text-slate-600 hover:bg-slate-100 border border-slate-200';
@@ -353,7 +365,7 @@
         let badgeColor = 'bg-slate-100 text-slate-700';
         if (item.by === 'Jai') badgeColor = 'bg-indigo-100 text-indigo-800 border border-indigo-200';
         else if (item.by === 'Niki') badgeColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-        else if (item.by === "P'Kook") badgeColor = 'bg-rose-100 text-rose-800 border border-rose-200';
+        else if (item.by && item.by.indexOf('Kook') !== -1) badgeColor = 'bg-rose-100 text-rose-800 border border-rose-200';
 
         return `
           <div class="flex items-start justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/70">
@@ -432,7 +444,7 @@
     function broadcastChange(payload) {
       payload.clientId = clientId;
       if (!payload.timestamp) payload.timestamp = Date.now();
-      payload.by = myRole;
+      payload.by = getMyRoleName();
 
       fetch(`https://ntfy.sh/${topic}`, {
         method: 'POST',
@@ -499,8 +511,9 @@
       const actionVerb = nextVal ? 'เลือก' : 'ยกเลิก';
       const personName = person === 'jai' ? 'Jai' : (person === 'niki' ? 'Niki' : "P'Kook");
       const ts = Date.now();
+      const myName = getMyRoleName();
       
-      addLogEntry(myRole, `${actionVerb} (${personName})`, dish ? dish.name : '', null, ts);
+      addLogEntry(myName, `${actionVerb} (${personName})`, dish ? dish.name : '', null, ts);
 
       broadcastChange({
         type: 'toggle',
@@ -548,7 +561,7 @@
         state = dishesData.map(() => ({ jai: false, niki: false, kook: false }));
         saveState();
         updateView();
-        addLogEntry(myRole, 'ล้างการเลือกทั้งหมด', '');
+        addLogEntry(getMyRoleName(), 'ล้างการเลือกทั้งหมด', '');
         broadcastChange({ type: 'reset_all', fullState: state });
       }
     }
@@ -557,7 +570,7 @@
       state = dishesData.map(() => ({ jai: true, niki: true, kook: true }));
       saveState();
       updateView();
-      addLogEntry(myRole, 'กดหาร 3 ทุกจาน', 'ทุกรายการ');
+      addLogEntry(getMyRoleName(), 'กดหาร 3 ทุกจาน', 'ทุกรายการ');
       broadcastChange({ type: 'split_all', fullState: state });
     }
 
